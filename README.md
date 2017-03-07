@@ -3,7 +3,7 @@
 
 nimwatch is directory monitoring library for Nim.
 
-**warning:** This library is heavily stil in development.  
+**warning:** This library is heavily still in development.  
 Currently only Windows support.
 
 # Usage
