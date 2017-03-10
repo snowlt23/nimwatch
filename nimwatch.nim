@@ -68,8 +68,6 @@ proc watch*(watcher: Watcher): seq[FileAction] =
   var bytesReturned: DWORD
 
   discard ReadDirectoryChangesW(watcher.hDir, cast[LPVOID](pBuf), sizeof(FILE_NOTIFY_INFORMATION) * 10, true, filter, cast[LPDWORD](bytesReturned.addr), cast[LPOVERLAPPED](nil), cast[LPOVERLAPPED_COMPLETION_ROUTINE](nil))
-  # if not ReadDirectoryChangesW(watcher.hDir, cast[LPVOID](pBuf), sizeof(FILE_NOTIFY_INFORMATION) * 10, true, filter, cast[LPDWORD](bytesReturned.addr), cast[LPOVERLAPPED](nil), cast[LPOVERLAPPED_COMPLETION_ROUTINE](nil)):
-  #   raise newException(IOError, "couldn't watch directory changes")
 
   var pData = cast[ptr FILE_NOTIFY_INFORMATION](pBuf)
   result = @[]
