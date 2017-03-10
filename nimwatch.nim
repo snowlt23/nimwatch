@@ -14,7 +14,7 @@ type
     actionRenameNew
   FileAction* = object
     kind*: FileActionKind
-    filename*: WideCString
+    filename*: string
 
 type
   FileNameArray* {.unchecked.} = array[0..0, Utf16Char]
@@ -92,9 +92,9 @@ proc watch*(watcher: Watcher): seq[FileAction] =
 
     let lenBytes = pData[].FileNameLength
     var filename = newWideCString("", lenBytes div 2)
-    for i in 0..<lenBytes:
+    for i in 0..<(lenBytes div 2):
       filename[i] = pData[].FileName[i]
-    action.filename = filename
+    action.filename = $filename
     result.add(action)
 
     if pData[].NextEntryOffset == 0:
