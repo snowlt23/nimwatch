@@ -14,14 +14,15 @@ type
     actionRenameNew
   FileAction* = object
     kind*: FileActionKind
-    filename*: string
+    filename*: WideCString
 
 type
-  FILE_NOTIFY_INFORMATION* = object
+  FileNameArray* {.unchecked.} = array[0..0, Utf16Char]
+  FILE_NOTIFY_INFORMATION* {.packed.} = object
     NextEntryOffset*: DWORD
     Action*: DWORD
     FileNameLength*: DWORD
-    FileName*: seq[WCHAR]
+    FileName*: FileNameArray
 
 const FILE_ACTION_ADDED = 0x00000001
 const FILE_ACTION_REMOVED = 0x00000002
@@ -58,28 +59,17 @@ proc newWatcher*(target: string): Watcher =
   if result.hDir == INVALID_HANDLE_VALUE:
     raise newException(IOError, "not existing file or directory: " & target)
 
-proc watch*(watcher: Watcher): Future[seq[FileAction]] {.async.} =
+proc watch*(watcher: Watcher): seq[FileAction] =
   var buf: array[10, FILE_NOTIFY_INFORMATION]
   var pBuf = buf[0].addr
 
   let filter =
     FILE_NOTIFY_CHANGE_FILE_NAME or FILE_NOTIFY_CHANGE_DIR_NAME or FILE_NOTIFY_CHANGE_ATTRIBUTES or FILE_NOTIFY_CHANGE_SIZE or FILE_NOTIFY_CHANGE_LAST_WRITE
-  let hEvent = CreateEvent(cast[LPSECURITY_ATTRIBUTES](nil), true, false, cast[LPCSTR](nil))
-  discard ResetEvent(hEvent)
-  var olp: OVERLAPPED
-  olp.hEvent = hEvent
+  var bytesReturned: DWORD
 
-  if not ReadDirectoryChangesW(watcher.hDir, cast[LPVOID](pBuf), sizeof(FILE_NOTIFY_INFORMATION) * 10, true, filter, cast[LPDWORD](nil), cast[LPOVERLAPPED](olp.addr), cast[LPOVERLAPPED_COMPLETION_ROUTINE](nil)):
-    raise newException(IOError, "couldn't watch directory changes")
-  while true:
-    let waitResult = WaitForSingleObject(hEvent, 500)
-    if waitResult != WAIT_TIMEOUT:
-      break
-    echo "."
-
-  var retsize: DWORD
-  if not GetOverlappedResult(watcher.hDir, olp, retsize, false):
-    raise newException(IOError, "couldn't get overlapped result")
+  discard ReadDirectoryChangesW(watcher.hDir, cast[LPVOID](pBuf), sizeof(FILE_NOTIFY_INFORMATION) * 10, true, filter, cast[LPDWORD](bytesReturned.addr), cast[LPOVERLAPPED](nil), cast[LPOVERLAPPED_COMPLETION_ROUTINE](nil))
+  # if not ReadDirectoryChangesW(watcher.hDir, cast[LPVOID](pBuf), sizeof(FILE_NOTIFY_INFORMATION) * 10, true, filter, cast[LPDWORD](bytesReturned.addr), cast[LPOVERLAPPED](nil), cast[LPOVERLAPPED_COMPLETION_ROUTINE](nil)):
+  #   raise newException(IOError, "couldn't watch directory changes")
 
   var pData = cast[ptr FILE_NOTIFY_INFORMATION](pBuf)
   result = @[]
@@ -101,10 +91,10 @@ proc watch*(watcher: Watcher): Future[seq[FileAction]] {.async.} =
       discard
 
     let lenBytes = pData[].FileNameLength
-    var filename = newWideCString("", lenBytes)
+    var filename = newWideCString("", lenBytes div 2)
     for i in 0..<lenBytes:
-      filename[i] = cast[Utf16Char](pData[].FileName[i])
-    action.filename = $filename
+      filename[i] = pData[].FileName[i]
+    action.filename = filename
     result.add(action)
 
     if pData[].NextEntryOffset == 0:
@@ -112,5 +102,5 @@ proc watch*(watcher: Watcher): Future[seq[FileAction]] {.async.} =
     pData = cast[ptr FILE_NOTIFY_INFORMATION](cast[DWORD](pData) + pData[].NextEntryOffset)
       
 let watcher = newWatcher("./testdir")
-let ret = waitFor watcher.watch()
+let ret = watcher.watch()
 echo ret
