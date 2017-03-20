@@ -1,11 +1,14 @@
 ﻿
 import windows
 import asyncdispatch
+import threadpool
 
 type
+  WatchChannel* = Channel[FileAction]
   Watcher* = ref object
     target*: string
-    hDir*: HANDLE
+    hDir: HANDLE
+    callbacks*: seq[proc (action: FileAction)]
   FileActionKind* = enum
     actionAdd
     actionRemove
@@ -43,10 +46,11 @@ proc ReadDirectoryChangesW*(
   lpBytesReturned: LPDWORD, 
   lpOverlapped: LPOVERLAPPED, 
   lpCompletionRoutine: LPOVERLAPPED_COMPLETION_ROUTINE,
-): WINBOOL {.importc.}
+): WINBOOL {.cdecl, importc, header: "<windows.h>".}
 
 proc newWatcher*(target: string): Watcher =
   new result
+  result.callbacks = @[]
   result.hDir = CreateFile(
     cast[LPCSTR](target.cstring), 
     FILE_LIST_DIRECTORY, 
@@ -59,7 +63,10 @@ proc newWatcher*(target: string): Watcher =
   if result.hDir == INVALID_HANDLE_VALUE:
     raise newException(IOError, "not existing file or directory: " & target)
 
-proc watch*(watcher: Watcher): seq[FileAction] =
+proc register*(watcher: Watcher, cb: proc (action: FileAction)) =
+  watcher.callbacks.add(cb)
+
+proc wait*(watcher: Watcher): seq[FileAction] =
   var buf: array[10, FILE_NOTIFY_INFORMATION]
   var pBuf = buf[0].addr
 
@@ -98,7 +105,20 @@ proc watch*(watcher: Watcher): seq[FileAction] =
     if pData[].NextEntryOffset == 0:
       break
     pData = cast[ptr FILE_NOTIFY_INFORMATION](cast[DWORD](pData) + pData[].NextEntryOffset)
-      
-let watcher = newWatcher("./testdir")
-let ret = watcher.watch()
-echo ret
+
+
+proc watchWithThread*(watcher: Watcher) {.thread.} =
+  while true:
+    for action in watcher.wait():
+      for cb in watcher.callbacks:
+        cb(action)
+proc watch*(watcher: Watcher) =
+  spawn watcher.watchWithThread()
+
+when isMainModule:
+  let watcher = newWatcher("./testdir")
+  watcher.register do (action: FileAction):
+    echo action
+  watcher.watch()
+  while true:
+    sync()
