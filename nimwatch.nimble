@@ -1,7 +1,7 @@
 ﻿
 version = "0.1.0"
 author = "snowlt23"
-description = "directory monitoring library"
+description = "filesystem monitoring library"
 license = "MIT"
 
 # dependencies
