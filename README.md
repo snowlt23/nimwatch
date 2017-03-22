@@ -8,6 +8,6 @@ nimwatch is filesystem monitoring library for Nim.
 - Windows (Win32API)
 - Linux (inotify)
 
-**TODO*
+**TODO**
 - MacOS X
 - FreeBSD
