@@ -1,4 +1,4 @@
-﻿
+
 # nimwatch
 
 nimwatch is filesystem monitoring library for Nim.  
