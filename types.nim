@@ -11,6 +11,7 @@ type
       hDir*: HANDLE
     elif defined(unix):
       fd*: cint
+      wd*: cint
   FileActionKind* = enum
     actionCreate
     actionDelete

@@ -31,7 +31,7 @@ proc ReadDirectoryChangesW*(
   lpCompletionRoutine: LPOVERLAPPED_COMPLETION_ROUTINE,
 ): WINBOOL {.cdecl, importc, header: "<windows.h>".}
 
-proc wait*(watcher: Watcher): seq[FileAction] =
+proc readEvents*(hDir: HANDLE): seq[FileAction] =
   var buf: array[10, FILE_NOTIFY_INFORMATION]
   var pBuf = buf[0].addr
 
@@ -39,7 +39,7 @@ proc wait*(watcher: Watcher): seq[FileAction] =
     FILE_NOTIFY_CHANGE_FILE_NAME or FILE_NOTIFY_CHANGE_DIR_NAME or FILE_NOTIFY_CHANGE_ATTRIBUTES or FILE_NOTIFY_CHANGE_SIZE or FILE_NOTIFY_CHANGE_LAST_WRITE
   var bytesReturned: DWORD
 
-  discard ReadDirectoryChangesW(watcher.hDir, cast[LPVOID](pBuf), sizeof(FILE_NOTIFY_INFORMATION) * 10, true, filter, cast[LPDWORD](bytesReturned.addr), cast[LPOVERLAPPED](nil), cast[LPOVERLAPPED_COMPLETION_ROUTINE](nil))
+  discard ReadDirectoryChangesW(hDir, cast[LPVOID](pBuf), sizeof(FILE_NOTIFY_INFORMATION) * 10, true, filter, cast[LPDWORD](bytesReturned.addr), cast[LPOVERLAPPED](nil), cast[LPOVERLAPPED_COMPLETION_ROUTINE](nil))
 
   var pData = cast[ptr FILE_NOTIFY_INFORMATION](pBuf)
   result = @[]
@@ -70,3 +70,27 @@ proc wait*(watcher: Watcher): seq[FileAction] =
     if pData[].NextEntryOffset == 0:
       break
     pData = cast[ptr FILE_NOTIFY_INFORMATION](cast[DWORD](pData) + pData[].NextEntryOffset)
+
+#
+# Watcher
+#
+
+proc init*(watcher: Watcher) =
+  watcher.hDir = CreateFile(
+    cast[LPCSTR](watcher.target.cstring), 
+    FILE_LIST_DIRECTORY,
+    FILE_SHARE_READ or FILE_SHARE_WRITE or FILE_SHARE_DELETE, 
+    cast[LPSECURITY_ATTRIBUTES](nil),
+    OPEN_EXISTING,
+    FILE_FLAG_BACKUP_SEMANTICS or FILE_FLAG_OVERLAPPED,
+    cast[HANDLE](nil)
+  )
+  if watcher.hDir == INVALID_HANDLE_VALUE:
+    raise newException(IOError, "not existing file or directory: " & watcher.target)
+
+proc wait*(watcher: Watcher): seq[FileAction] =
+  return readEvents(watcher.hDir)
+
+# TODO:
+proc close*(watcher: Watcher) =
+  discard CloseHandle(watcher.hDir)

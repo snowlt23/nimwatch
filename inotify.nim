@@ -32,7 +32,7 @@ proc inotify_init*(): FD {.importinotify.}
 proc inotify_add_watch*(fd: FD, target: cstring, events: cint): WD {.importinotify.}
 proc inotify_rm_watch*(fd: FD, wd: WD) {.importinotify.}
 
-proc inotify_read_events*(fd: FD): seq[FileAction] =
+proc readEvents*(fd: FD): seq[FileAction] =
   result = @[]
 
   var buffer = newString(BufLen)
@@ -54,11 +54,24 @@ proc inotify_read_events*(fd: FD): seq[FileAction] =
       action.kind = actionDelete
     elif (event[].mask and IN_CREATE) != 0:
       action.kind = actionCreate
-      
+
     action.filename = $event[].name
     result.add(action)
     
     i += EventSize + event[].len.int
 
+#
+# Watcher
+#
+
+proc init*(watcher: Watcher) =
+  watcher.fd = inotify_init()
+  watcher.wd = inotify_add_watch(watcher.fd, target, DefaultEvents)
+
 proc wait*(watcher: Watcher): seq[FileAction] =
-  return inotify_read_events(watcher.fd)
+  return readEvents(watcher.fd)
+
+proc close*(watcher: Watcher) =
+  inotify_rm_watch(watcher.fd, watcher.wd)
+  close(watcher.fd)
+  
