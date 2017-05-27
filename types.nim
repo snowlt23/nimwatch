@@ -1,4 +1,5 @@
 
+import asyncdispatch
 when defined(windows):
   import windows
 
@@ -8,9 +9,9 @@ type
     target*: string
     callbacks*: seq[proc (action: FileAction)]
     when defined(windows):
-      hDir*: HANDLE
+      fd*: AsyncFD
     elif defined(unix):
-      fd*: cint
+      fd*: AsyncFD
       wd*: cint
   FileActionKind* = enum
     actionCreate

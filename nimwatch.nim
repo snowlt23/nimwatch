@@ -1,6 +1,7 @@
 ﻿
-import threadpool
 import types
+export types
+import asyncdispatch
 
 when defined(windows):
   import winnotify
@@ -16,21 +17,17 @@ proc newWatcher*(target: string): Watcher =
 proc register*(watcher: Watcher, cb: proc (action: FileAction)) =
   watcher.callbacks.add(cb)
 
-proc watchWithThread*(watcher: Watcher) {.thread.} =
-  while true:
-    for action in watcher.wait():
-      for cb in watcher.callbacks:
-        cb(action)
 proc watch*(watcher: Watcher) =
-  spawn watcher.watchWithThread()
-
-proc watchForever*() =
-  while true:
-    sync()
+  var fut = watcher.read()
+  fut.callback = proc () =
+    for cb in watcher.callbacks:
+      for action in fut.read():
+        cb(action)
+    watcher.watch()
 
 when isMainModule:
   let watcher = newWatcher("./testdir")
   watcher.register do (action: FileAction):
     echo action
   watcher.watch()
-  watchForever()
+  runForever()

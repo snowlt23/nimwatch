@@ -68,7 +68,7 @@ proc init*(watcher: Watcher) =
   watcher.fd = inotify_init()
   watcher.wd = inotify_add_watch(watcher.fd, target, DefaultEvents)
 
-proc wait*(watcher: Watcher): seq[FileAction] =
+proc read*(watcher: Watcher): seq[FileAction] =
   return readEvents(watcher.fd)
 
 proc close*(watcher: Watcher) =

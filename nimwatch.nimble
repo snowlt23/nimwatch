@@ -4,6 +4,5 @@ author = "snowlt23"
 description = "filesystem monitoring library"
 license = "MIT"
 
-# dependencies
-
 requires "nim >= 0.15.2"
+requires "oldwinapi"
