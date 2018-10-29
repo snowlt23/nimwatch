@@ -15,7 +15,7 @@ const IN_DELETE* = 0x00000200
 const DefaultEvents* = IN_MODIFY or IN_MOVED_FROM or IN_MOVED_TO or IN_CREATE or IN_DELETE
 
 type
-  FileNameArray* {.unchecked.} = array[0..0, char]
+  FileNameArray* = cstring
   InotifyEvent* = object
     wd*: WD
     mask*: uint32
@@ -56,7 +56,10 @@ proc readEvents*(fd: FD): Future[seq[FileAction]] =
           action.kind = actionDelete
         elif (event[].mask and IN_CREATE) != 0:
           action.kind = actionCreate
-        action.filename = $event[].name
+        var buf = alloc0(event.len)
+        copyMem(buf, event[].name.addr, event.len)
+        action.filename = $cast[cstring](buf)
+        dealloc(buf)
         actions.add(action)
         i += EventSize + event[].len.int
 
