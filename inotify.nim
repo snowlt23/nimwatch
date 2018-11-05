@@ -21,9 +21,9 @@ type
     mask*: uint32
     cookie*: uint32
     len*: uint32
-    name*: FileNameArray
+    name*: cstring
 
-let EventSize* = sizeof(InotifyEvent)
+let EventSize* = sizeof(InotifyEvent) - sizeof(cstring)
 let BufLen* = 1024 * (EventSize + 16)
 
 proc inotify_init*(): FD {.importinotify.}
@@ -56,6 +56,8 @@ proc readEvents*(fd: FD): Future[seq[FileAction]] =
           action.kind = actionDelete
         elif (event[].mask and IN_CREATE) != 0:
           action.kind = actionCreate
+        else:
+          return false
         var buf = alloc0(event.len)
         copyMem(buf, event[].name.addr, event.len)
         action.filename = $cast[cstring](buf)
@@ -64,7 +66,7 @@ proc readEvents*(fd: FD): Future[seq[FileAction]] =
         i += EventSize + event[].len.int
 
       retFuture.complete(actions)
-  
+
   addRead(fd, cb)
   return retFuture
 
@@ -84,4 +86,3 @@ proc read*(watcher: Watcher): Future[seq[FileAction]] =
 proc close*(watcher: Watcher) =
   inotify_rm_watch(watcher.fd, watcher.wd)
   discard close(watcher.fd)
-  
