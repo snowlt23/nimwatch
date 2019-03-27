@@ -1,4 +1,4 @@
-import nimwatch
+import ../src/nimwatch
 import unittest
 import macros
 import os
@@ -19,7 +19,7 @@ macro watchend(): untyped =
     if watchCount == `watchNum`:
       running = false
       return
-      
+
 suite "nimwatch":
   test "file":
     removeDir("testdir")

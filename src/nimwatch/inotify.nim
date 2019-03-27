@@ -1,7 +1,6 @@
-
 import posix
-import types
 import asyncdispatch
+import ./types
 
 {.pragma: importinotify, cdecl, importc, header: "sys/inotify.h".}
 

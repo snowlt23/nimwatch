@@ -1,20 +1,18 @@
-﻿
-import types
+﻿import ./nimwatch/types
 export types
 import asyncdispatch
 
 when defined(windows):
-  import winnotify
+  import ./nimwatch/winnotify
 elif defined(unix):
-  import inotify
+  import ./nimwatch/inotify
 
 proc newWatcher*(target: string): Watcher =
   new result
   result.target = target
-  result.callbacks = @[]
   result.init()
 
-proc register*(watcher: Watcher, cb: proc (action: FileAction)) =
+proc register*(watcher: Watcher, cb: proc (action: FileAction) {.gcsafe.}) =
   watcher.callbacks.add(cb)
 
 proc watch*(watcher: Watcher) =
@@ -26,7 +24,7 @@ proc watch*(watcher: Watcher) =
     watcher.watch()
 
 when isMainModule:
-  let watcher = newWatcher("./testdir")
+  let watcher = newWatcher("../testdir")
   watcher.register do (action: FileAction):
     echo action
   watcher.watch()

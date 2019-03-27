@@ -1,8 +1,7 @@
-
 import windows
 import os
-import types
 import asyncdispatch
+import ./types
 
 const FILE_ACTION_ADDED* = 0x00000001
 const FILE_ACTION_REMOVED* = 0x00000002
